@@ -1,213 +1,167 @@
 import React, { Component, PureComponent, Children, createElement } from 'react'
-import ReactDOM, { findDOMNode } from 'react-dom'
-import PropTypes from 'prop-types'
-import { VelocityTransitionGroup } from 'velocity-react'
-import Transition from 'react-motion-ui-pack'
+import ReactDOM from 'react-dom'
 import { Manager, Target, Popper, Arrow } from '../src/react-popper'
 import PopperJS from 'popper.js'
-import Portal from 'react-travel'
-import outy from 'outy'
 
 import './main.scss'
 
-const modifiers = {
-  customStyle: {
-    enabled: true,
-    fn: data => {
-      data.styles = {
-        ...data.styles,
-        background: 'red',
-      }
-      return data
-    },
-  },
+const Background = () => (
+  <div style={{
+    backgroundColor: `green`,
+    position: `absolute`,
+    top: 0,
+    zIndex: 1,
+    width: `100%`,
+    height: `100%`,
+  }}></div>
+)
+
+class Text extends Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            text: 'hi'
+        }
+    }
+    componentDidMount() {
+        setTimeout(() => {
+            this.setState({
+              text:
+                "a lot of text. a lot of text. a lot of text.a lot of text.a lot of text. a lot of text. a lot of text. a lot of text.a lot of text.a lot of text. a lot of text. a lot of text. a lot of text.a lot of text.a lot of text."
+            });
+        }, 2000)
+    }
+
+    componentDidUpdate() {
+      console.log('text updated')
+    }
+   
+    render() {
+      console.log('render text')
+        return <div style={{color: `black`}}>{this.state.text}</div>
+    }
 }
 
-const CustomTarget = ({ innerRef, ...props }) => (
-  <button
-    ref={innerRef}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 200,
-      height: 200,
-      padding: 24,
-      fontSize: 32,
-      lineHeight: '1',
-      backgroundColor: 'rebeccapurple',
-      color: 'rgba(255, 255, 255, 0.5)',
-      userSelect: 'none',
-    }}
-    {...props}
-  />
-)
+class TextWrap extends Component {
+  componentDidUpdate() {
+    console.log('textwrap updated')
+    this.props.onUpdate();
+  }
 
-const CustomPopper = ({ innerRef, style, ...props }) => (
-  <div
-    ref={innerRef}
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 200,
-      height: 100,
-      fontSize: 16,
-      backgroundColor: '#ff9121',
-      color: 'rgba(255, 255, 255, 0.8)',
-      ...style,
-    }}
-    {...props}
-  />
-)
+  componentDidMount() {
+    console.log('textwrap did mount')
 
-class MultipleExample extends Component {
-  state = {
-    placement: 'bottom',
+    // React.Children.map(this.props.children, (child) => {
+    //   console.log('child', child)
+    // })
+  }
+
+  shouldComponentUpdate() {
+    console.log("shouldComponentUpdate");
+    return true;
   }
 
   render() {
+    console.log("render textwrap");
+    return (
+      <div >
+        {this.props.children}
+      </div>
+    )
+  }
+}
+
+class App extends Component {
+  state = {
+    placement: 'top',
+    height: 0,
+    width: 0,
+  }
+
+  refHandlers = {
+    popper: (ref) => this.popper = ref
+  }
+
+  componentDidMount() {
+    this.onTextUpdate();
+  }
+
+  onTextUpdate = () => {
+    console.log('ontextupdate')
+    const height = this.popper && this.popper.clientHeight;
+    const width = this.popper && this.popper.clientWidth;
+    if(height && height !== this.state.height) {
+      this.setState({
+        height,
+        width,
+      })
+    }
+    // if (this.popper) console.log('this.popper', this.popper.clientHeight)
+  }
+
+  render() {
+    const modifiers = {
+      computeStyle: {
+        x: 'top'
+      },
+      updateBackground: {
+        enabled: true,
+        fn: (data) => {
+          console.log('updateBackground')
+          const height = data.offsets.popper.height;
+          const width = data.offsets.popper.width;
+
+          if (
+            height !== this.state.height ||
+            width !== this.state.width
+          ) {
+            this.setState({
+              height,
+              width,
+            });
+          }
+
+          return data;
+        }
+      }
+    };
+
     const { placement } = this.state
     return (
-      <div>
-        <select
-          value={placement}
-          onChange={e =>
-            this.setState({
-              placement: e.target.value,
-            })}
-        >
-          {PopperJS.placements.map(placement => (
-            <option key={placement} value={placement}>
-              {placement}
-            </option>
-          ))}
-        </select>
+      <div style={{
+        marginTop: 400,
+        marginLeft: 200,
+      }}>
         <Manager>
           <Target style={{ width: 120, height: 120, background: 'red' }}>
             Box
           </Target>
-          <Popper placement="left">
-            {({ popperProps }) => (
-              <div {...popperProps} className="popper">
-                Content Left
-                <Arrow>
-                  {({ arrowProps }) => (
-                    <span {...arrowProps} className="popper__arrow" />
-                  )}
-                </Arrow>
-              </div>
-            )}
+          <Popper
+            className="popper"
+            placement={placement}
+            modifiers={modifiers}
+            innerRef={this.refHandlers.popper}
+          >
+            {({ popperProps, restProps, scheduleUpdate }) => {
+              const style = {
+                ...popperProps.style,
+                background: `blue`
+              };
+              return (
+                <div {...popperProps} {...restProps} style={style}>
+                <TextWrap onUpdate={this.onTextUpdate} >
+                      {this.props.children}
+                      <Arrow className="popper__arrow" />
+                      <Background />
+                  </TextWrap>
+                </div>
+            )}}
           </Popper>
-          <Popper className="popper" placement="right">
-            Content Right
-            <Arrow className="popper__arrow" />
-          </Popper>
-          <Portal>
-            <Popper
-              className="popper"
-              placement={placement}
-              modifiers={modifiers}
-            >
-              Dynamic Content in a Portal!
-              <Arrow className="popper__arrow" />
-            </Popper>
-          </Portal>
         </Manager>
       </div>
     )
   }
 }
 
-class AnimatedExample extends PureComponent {
-  state = {
-    isOpen: false,
-  }
-
-  componentDidMount() {
-    this._setOusideTap()
-  }
-
-  componentDidUpdate(lastProps, lastState) {
-    if (lastState.isOpen !== this.state.isOpen) {
-      setTimeout(() => this._setOusideTap())
-    }
-  }
-
-  componentWillUnmount() {
-    this.outsideTap.remove()
-  }
-
-  _setOusideTap = () => {
-    const elements = [this.target]
-
-    if (this.popper) {
-      elements.push(this.popper)
-    }
-
-    if (this.outsideTap) {
-      this.outsideTap.remove()
-    }
-
-    this.outsideTap = outy(
-      elements,
-      ['click', 'touchstart'],
-      this._handleOutsideTap
-    )
-  }
-
-  _handleOutsideTap = () => {
-    this.setState({ isOpen: false })
-  }
-
-  _handleTargetClick = () => {
-    this.setState({ isOpen: true })
-  }
-
-  render() {
-    return (
-      <Manager>
-        <Target
-          innerRef={c => (this.target = findDOMNode(c))}
-          component={CustomTarget}
-          onClick={this._handleTargetClick}
-        >
-          Click {this.state.isOpen ? 'outside to hide' : 'to show'} popper
-        </Target>
-        <Transition
-          component={false}
-          enter={{ opacity: 1, scale: 1 }}
-          leave={{ opacity: 0, scale: 0.9 }}
-        >
-          {this.state.isOpen && (
-            <Popper
-              key="popper"
-              component={CustomPopper}
-              innerRef={c => {
-                this.popper = findDOMNode(c)
-              }}
-              placement="bottom"
-            >
-              <div>Animated Popper 🎉</div>
-            </Popper>
-          )}
-        </Transition>
-      </Manager>
-    )
-  }
-}
-const App = () => (
-  <div
-    style={{
-      padding: 200,
-    }}
-  >
-    <div style={{ marginBottom: 200 }}>
-      <MultipleExample />
-    </div>
-    <div style={{ marginBottom: 200 }}>
-      <AnimatedExample />
-    </div>
-  </div>
-)
-ReactDOM.render(<App />, document.getElementById('app'))
+ReactDOM.render(<App children={<Text />} />, document.getElementById('app'))
